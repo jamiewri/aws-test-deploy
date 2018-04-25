@@ -1,0 +1,9 @@
+---
+# defaults file for jamie.create-ec2-instance
+aws_vpc_region:
+instance_type:
+ami:
+keypair:
+security_group_id:
+instance_count:
+target_vpc_subnet_id:

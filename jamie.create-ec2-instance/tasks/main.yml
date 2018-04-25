@@ -1,0 +1,28 @@
+---
+# tasks file for jamie.create-ec2-instance
+- name: Create an ec2 instance
+  ec2:
+    id: "{{ ec2_id }}"
+    key_name: "{{ keypair }}"
+    group_id: "{{ security_group_id }}"
+    instance_type: "{{ instance_type }}"
+    image: "{{ ami }}"
+    wait: true
+    region: "{{ aws_vpc_region }}"
+    count: "{{ instance_count }}"
+    count_tag:
+      Name: "{{ testing_tags }}"
+    instance_tags:
+      Name: "{{ testing_tags }}"
+    vpc_subnet_id: "{{ target_vpc_subnet_id }}"
+    assign_public_ip: yes
+
+  register: ec2
+- name: Set fact for the ip address
+  set_fact:
+    ec2_lb_ips: "{{ ec2.instances }}"
+
+
+- name: Return Value
+  debug: var=ec2.instances
+

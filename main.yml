@@ -1,0 +1,67 @@
+- name: Create VPC
+  hosts: localhost
+  gather_facts: False
+  vars:
+    # Global Variables
+    aws_playbook_uuid: Example_UUID
+    aws_project_name: example-deploy-app
+    aws_vpc_region: ap-southeast-2
+    aws_ami_id: ami-67589505
+    aws_key_pair: key-pair-example
+  roles:
+    - role: jamie.create-vpc
+      aws_vpc_name: my-new-vpc3
+      aws_vpc_cidr_block: 10.0.0.0/16
+      aws_vpc_tenancy: default # Default
+      aws_vpc_subnet_cidr_block: 10.0.1.0/24
+    
+  hosts: localhost
+  gather_facts: False
+  vars:
+    aws_vpc_region: ap-southeast-2
+    aws_ami_id: ami-67589505
+    aws_key_pair: key-pair-example
+  roles:
+    - role: jamie.create-ec2-instance
+      instance_type: t2.micro
+      ami: "{{ aws_ami_id }}"
+      keypair: "{{ aws_key_pair }}"
+      security_group_id: "{{ vpc_sec_group.group_id }}"
+      instance_count: 1
+      target_vpc_subnet_id: "{{ vpc_subnet_result.subnet.id }}"
+      ec2_id: LB-1
+      testing_tags: lb
+
+
+- name: gather lb facts
+  hosts: localhost
+  tasks:
+  - name: gather lb facts
+    ec2_instance_facts:
+    filters:
+      "tag:Name": lb
+    register: lb_instances_result
+
+  - name: add lb host to new group
+    add_host:
+      name: "{{ item.public_dns_name }}"
+      groups:
+        - aws
+        - loadbalancer
+      lb_private_ip: "{{ item.private_ip_address }}"
+      hostname: "{{ item.public_dns_name }}"
+      ansible_ssh_user: ec2-user
+      ansible_ssh_private_key_file: ~/Desktop/key-pair-example.pem 
+      ansible_become: true
+    with_items: "{{ lb_instances_result.instances }}"
+
+- name: configure lb
+  hosts: loadbalancer
+  tasks:
+    - name: do something on lb
+      yum:
+        name: haproxy
+        state: latest
+
+
+  

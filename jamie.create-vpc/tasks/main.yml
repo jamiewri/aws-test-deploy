@@ -1,0 +1,65 @@
+---
+# tasks file for jamie.create-vpc
+- name: Create VPC {{ aws_vpc_name }}
+  ec2_vpc_net:
+    name: "{{ aws_vpc_name }}"
+    cidr_block: "{{ aws_vpc_cidr_block }}"
+    region: "{{ aws_vpc_region }}"
+    tenancy: "{{ aws_vpc_tenancy }}"
+    tags:
+      aws_project_name: "{{ aws_project_name }}"
+      created_with: ansible
+      aws_ansible_uuid: "{{ aws_playbook_uuid }}"
+  register: vpc_result
+
+- name: Return value
+  debug: var=vpc_result
+
+
+- name: Create subnet for {{ aws_vpc_name }}
+  ec2_vpc_subnet:
+    state: present
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    cidr: "{{ aws_vpc_subnet_cidr_block }}"
+    resource_tags:
+      Name: "{{ aws_vpc_name }} subnet"
+      aws_project_name: "{{ aws_project_name }}"
+      created_with: ansible
+      aws_ansible_uuid: "{{ aws_playbook_uuid }}"
+  register: vpc_subnet_result
+
+- name: Return value
+  debug: var=vpc_subnet_result
+
+- name: Add internet gateway for the {{ aws_vpc_name }} vpc
+  ec2_vpc_igw:
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    state: present
+    region: "{{ aws_vpc_region }}"
+    resource_tags:
+      Name: "{{ aws_vpc_name }} IGW"
+  register: vpc_igw_result
+
+- name: Return value
+  debug: var=vpc_igw_result
+
+- name: Get Public IP
+  ipify_facts:
+  register: public_ip
+
+- name: ip result
+  debug: var=public_ip
+
+- name: Create SSH Security group
+  ec2_group:
+    name: "{{ aws_project_name }} security group"
+    description: "Allows SSH in for {{ aws_project_name }}"
+    vpc_id: "{{ vpc_result.vpc.id }}"
+    region: "{{ aws_vpc_region }}"
+    rules:
+      - proto: tcp
+        ports:
+          - 22
+        cidr_ip: "{{ public_ip.ansible_facts.ipify_public_ip }}/32"
+        rule_desc: SSH In
+  register: vpc_sec_group
